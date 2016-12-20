@@ -2,20 +2,11 @@
 
 namespace SilverStripe\GraphQL;
 
-use GraphQL\Type\Definition\InterfaceType;
+use GraphQL\Type\Definition\InterfaceType as BaseInterfaceType;
 
-/**
- * Base type creator for interface type generation.
- *
- * @link https://github.com/webonyx/graphql-php#interfaces
- */
 class InterfaceTypeCreator extends TypeCreator
 {
-    /**
-     * Returns a callback to the type resolver for this interface
-     *
-     * @return callable
-     */
+
     protected function getTypeResolver()
     {
         if (!method_exists($this, 'resolveType')) {
@@ -23,7 +14,6 @@ class InterfaceTypeCreator extends TypeCreator
         }
 
         $resolver = array($this, 'resolveType');
-
         return function () use ($resolver) {
             $args = func_get_args();
             return call_user_func_array($resolver, $args);
@@ -47,13 +37,8 @@ class InterfaceTypeCreator extends TypeCreator
         return $attributes;
     }
 
-    /**
-     * Generates the interface type from its configuration
-     *
-     * @return InterfaceType
-     */
     public function toType()
     {
-        return new InterfaceType($this->toArray());
+        return new BaseInterfaceType($this->toArray());
     }
 }

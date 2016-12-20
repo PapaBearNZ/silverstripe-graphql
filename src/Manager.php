@@ -6,18 +6,14 @@ use Doctrine\Instantiator\Exception\InvalidArgumentException;
 use GraphQL\Schema;
 use GraphQL\GraphQL;
 use SilverStripe\Core\Injector\Injector;
-use SilverStripe\Core\Injector\Injectable;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Error;
 use GraphQL\Type\Definition\Type;
-use SilverStripe\Security\Member;
 use SilverStripe\GraphQL\Scaffolding\ScaffoldingProvider;
 use SilverStripe\GraphQL\Scaffolding\Scaffolders\GraphQLScaffolder;
 
 class Manager
 {
-    use Injectable;
-
     /**
      * @var array Map of named {@link Type}
      */
@@ -45,39 +41,38 @@ class Manager
 
     /**
      * @param array $config An array with optional 'types' and 'queries' keys
-     *
      * @return Manager
      */
     public static function createFromConfig($config)
     {
         /** @var Manager $manager */
-        $manager = Injector::inst()->create(self::class);
+        $manager = Injector::inst()->create(Manager::class);
 
-        if (isset($config['scaffolding'])) {
-            $scaffolder = GraphQLScaffolder::createFromConfig($config['scaffolding']);
+        if(isset($config['scaffolding'])) {
+        	$scaffolder = GraphQLScaffolder::createFromConfig($config['scaffolding']);
         } else {
-            $scaffolder = new GraphQLScaffolder();
+        	$scaffolder = new GraphQLScaffolder();
         }
 
-        if (isset($config['scaffolding_providers'])) {
-            foreach ($config['scaffolding_providers'] as $provider) {
-                if (!class_exists($provider)) {
+        if(isset($config['scaffolding_providers'])) {
+        	foreach($config['scaffolding_providers'] as $provider) {
+        		if(!class_exists($provider)) {
                     throw new InvalidArgumentException(sprintf(
                         'Scaffolding provider %s does not exist.',
                         $provider
-                    ));
-                }
+                    ));        			        			
+        		}
+        		
+        		$provider = Injector::inst()->create($provider);
 
-                $provider = Injector::inst()->create($provider);
-
-                if (!$provider instanceof ScaffoldingProvider) {
+        		if(!$provider instanceof ScaffoldingProvider) {
                     throw new InvalidArgumentException(sprintf(
                         'All scaffolding providers must implement the %s interface',
                         ScaffoldingProvider::class
-                    ));
-                }
-                $scaffolder = $provider->provideGraphQLScaffolding($scaffolder);
-            }
+                    ));        			
+        		}
+        		$scaffolder = $provider->provideGraphQLScaffolding($scaffolder);        		
+        	}
         }
 
         $scaffolder->addToManager($manager);
@@ -88,7 +83,7 @@ class Manager
                 $typeCreator = Injector::inst()->create($typeCreatorClass, $manager);
                 if (!($typeCreator instanceof TypeCreator)) {
                     throw new InvalidArgumentException(sprintf(
-                        'The type named "%s" needs to be a class extending '.TypeCreator::class,
+                        'The type named "%s" needs to be a class extending ' . TypeCreator::class,
                         $name
                     ));
                 }
@@ -104,7 +99,7 @@ class Manager
                 $queryCreator = Injector::inst()->create($queryCreatorClass, $manager);
                 if (!($queryCreator instanceof QueryCreator)) {
                     throw new InvalidArgumentException(sprintf(
-                        'The type named "%s" needs to be a class extending '.QueryCreator::class,
+                        'The type named "%s" needs to be a class extending ' . QueryCreator::class,
                         $name
                     ));
                 }
@@ -120,7 +115,7 @@ class Manager
                 $mutationCreator = Injector::inst()->create($mutationCreatorClass, $manager);
                 if (!($mutationCreator instanceof MutationCreator)) {
                     throw new InvalidArgumentException(sprintf(
-                        'The mutation named "%s" needs to be a class extending '.MutationCreator::class,
+                        'The mutation named "%s" needs to be a class extending ' . MutationCreator::class,
                         $name
                     ));
                 }
@@ -189,8 +184,7 @@ class Manager
     public function queryAndReturnResult($query, $params = [], $schema = null)
     {
         $schema = $this->schema($schema);
-        $context = $this->getContext();
-        $result = GraphQL::executeAndReturnResult($schema, $query, null, $context, $params);
+        $result = GraphQL::executeAndReturnResult($schema, $query, null, null, $params);
 
         return $result;
     }
@@ -198,12 +192,12 @@ class Manager
     /**
      * @param Type   $type
      * @param string $name An optional identifier for this type (defaults to 'name' attribute in type definition).
-     *                     Needs to be unique in schema
+     *                     Needs to be unique in schema.
      */
     public function addType(Type $type, $name = '')
     {
         if (!$name) {
-            $name = (string) $type;
+            $name = (string)$type;
         }
         $this->types[$name] = $type;
     }
@@ -234,7 +228,7 @@ class Manager
 
     /**
      * @param array  $query
-     * @param string $name  Identifier for this query (unique in schema)
+     * @param string $name Identifier for this query (unique in schema)
      */
     public function addQuery($query, $name)
     {
@@ -253,7 +247,7 @@ class Manager
 
     /**
      * @param array  $mutation
-     * @param string $name     Identifier for this mutation (unique in schema)
+     * @param string $name Identifier for this mutation (unique in schema)
      */
     public function addMutation($mutation, $name)
     {
