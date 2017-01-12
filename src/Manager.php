@@ -11,6 +11,7 @@ use GraphQL\Error;
 use GraphQL\Type\Definition\Type;
 use SilverStripe\GraphQL\Scaffolding\Interfaces\ScaffoldingProvider;
 use SilverStripe\GraphQL\Scaffolding\Scaffolders\SchemaScaffolder;
+use SilverStripe\Security\Member;
 
 class Manager
 {
