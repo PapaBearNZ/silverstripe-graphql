@@ -24,3 +24,12 @@ SilverStripe\ORM\FieldType\DBPrimaryKey:
 
 SilverStripe\ORM\FieldType\DBForeignKey:
   graphql_type: 'ID'
+
+## CORS default config
+SilverStripe\GraphQL:
+  cors:
+    Enabled: true
+    Allow-Origin:
+    Allow-Headers: 'Authorization, Content-Type'
+    Allow-Methods:  'GET, POST, OPTIONS'
+    Max-Age:  86400

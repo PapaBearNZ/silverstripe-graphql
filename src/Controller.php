@@ -50,7 +50,7 @@ class Controller extends BaseController
         if ($corsEnabled && $request->httpMethod() == 'OPTIONS') {
             // CORS config is enabled and the request is an OPTIONS pre-flight.
             // Process the CORS config and add appropriate headers.
-            return $this->processCorsConfig($request);
+            return $this->getCorsResponse($request);
         }
 
         $contentType = $request->getHeader('Content-Type') ?: $request->getHeader('content-type');
@@ -148,7 +148,7 @@ class Controller extends BaseController
      * @param HTTPResponse $response
      * @return HTTPResponse
      */
-    private function processCorsConfig(HTTPRequest $request, HTTPResponse $response = null)
+    private function getCorsResponse(HTTPRequest $request, HTTPResponse $response = null)
     {
         if (!$response) {
             $response = new HTTPResponse();
@@ -172,32 +172,13 @@ class Controller extends BaseController
                     return $this->httpError(403, "Access Forbidden");
                 }
             }
-        } elseif ($corsConfig['Allow-Origin']) {
+        } else {
             $response->addHeader('Access-Control-Allow-Origin', $corsConfig['Allow-Origin']);
-        } else {
-            $response->addHeader('Access-Control-Allow-Origin', '*');
         }
 
-        // Allow Headers header.
-        if ($corsConfig['Allow-Headers']) {
-            $response->addHeader('Access-Control-Allow-Headers', $corsConfig['Allow-Headers']);
-        } else {
-            $response->addHeader('Access-Control-Allow-Headers', '*');
-        }
-
-        // Allow Methods header.
-        if ($corsConfig['Allow-Methods']) {
-            $response->addHeader('Access-Control-Allow-Methods', $corsConfig['Allow-Methods']);
-        } else {
-            $response->addHeader('Access-Control-Allow-Headers', 'OPTIONS, POST, GET, PUT, DELETE');
-        }
-
-        // Max Age header.
-        if ($corsConfig['Max-Age']) {
-            $response->addHeader('Access-Control-Max-Age', $corsConfig['Max-Age']);
-        } else {
-            $response->addHeader('Access-Control-Max-Age', 86400);
-        }
+        $response->addHeader('Access-Control-Allow-Headers', $corsConfig['Allow-Headers']);
+        $response->addHeader('Access-Control-Allow-Methods', $corsConfig['Allow-Methods']);
+        $response->addHeader('Access-Control-Max-Age', $corsConfig['Max-Age']);
 
         return $response;
     }
