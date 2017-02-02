@@ -13,6 +13,7 @@ use Exception;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\Security;
 
+use SilverStripe\Dev\Debug;
 /**
  * Top level controller for handling graphql requests.
  * @todo CSRF protection (or token-based auth)
@@ -36,9 +37,25 @@ class Controller extends BaseController
         if ($stage && in_array($stage, [Versioned::DRAFT, Versioned::LIVE])) {
             Versioned::set_stage($stage);
         }
+
+        // Check for a possible CORS preflight request and handle if necessary
+        // Refer issue 66:  https://github.com/silverstripe/silverstripe-graphql/issues/66
+        $corsConfig = Config::inst()->get('SilverStripe\GraphQL', 'cors');
+        $corsEnabled = true; // Default to have CORS turned on.
+
+        if ($corsConfig && isset($corsConfig['Enabled']) && !$corsConfig['Enabled']) {
+            // Dev has turned off CORS
+            $corsEnabled = false;
+        }
+        if ($corsEnabled && $request->httpMethod() == 'OPTIONS') {
+            // CORS config is enabled and the request is an OPTIONS pre-flight.
+            // Process the CORS config and add appropriate headers.
+            return $this->processCorsConfig($request);
+        }
+
         $contentType = $request->getHeader('Content-Type') ?: $request->getHeader('content-type');
         $isJson = preg_match('#^application/json\b#', $contentType);
-        if ($isJson) {        	
+        if ($isJson) {
             $rawBody = $request->getBody();
             $data = json_decode($rawBody ?: '', true);
             $query = isset($data['query']) ? $data['query'] : null;
@@ -86,8 +103,8 @@ class Controller extends BaseController
             ];
         }
 
-        return (new HTTPResponse(json_encode($result)))
-            ->addHeader('Content-Type', 'application/json');
+        $response = $this->processCorsConfig($request, new HTTPResponse(json_encode($result)));
+        return $response->addHeader('Content-Type', 'application/json');
     }
 
     /**
@@ -122,5 +139,66 @@ class Controller extends BaseController
     public function getAuthHandler()
     {
         return new Handler;
+    }
+
+    /**
+     * Process the CORS config options and add the appropriate headers to the response.
+     *
+     * @param HTTPRequest $request
+     * @param HTTPResponse $response
+     * @return HTTPResponse
+     */
+    private function processCorsConfig(HTTPRequest $request, HTTPResponse $response = null)
+    {
+        if (!$response) {
+            $response = new HTTPResponse();
+        }
+        $corsConfig = Config::inst()->get('SilverStripe\GraphQL', 'cors');
+
+        // Allow Origins header.
+        if ($corsConfig['Allow-Origin'] && is_array($corsConfig['Allow-Origin'])) {
+            $origin = $request->getHeader('Origin');
+            if ($origin) {
+                $originAuthorised = false;
+                foreach ($corsConfig['Allow-Origin'] as $allowedOrigin) {
+                    if ($allowedOrigin == $origin) {
+                        $response->addHeader("Access-Control-Allow-Origin", $origin);
+                        $originAuthorised = true;
+                        break;
+                    }
+                }
+
+                if ($originAuthorised) {
+                    return $this->httpError(403, "Access Forbidden");
+                }
+            }
+        } elseif ($corsConfig['Allow-Origin']) {
+            $response->addHeader('Access-Control-Allow-Origin', $corsConfig['Allow-Origin']);
+        } else {
+            $response->addHeader('Access-Control-Allow-Origin', '*');
+        }
+
+        // Allow Headers header.
+        if ($corsConfig['Allow-Headers']) {
+            $response->addHeader('Access-Control-Allow-Headers', $corsConfig['Allow-Headers']);
+        } else {
+            $response->addHeader('Access-Control-Allow-Headers', '*');
+        }
+
+        // Allow Methods header.
+        if ($corsConfig['Allow-Methods']) {
+            $response->addHeader('Access-Control-Allow-Methods', $corsConfig['Allow-Methods']);
+        } else {
+            $response->addHeader('Access-Control-Allow-Headers', 'OPTIONS, POST, GET, PUT, DELETE');
+        }
+
+        // Max Age header.
+        if ($corsConfig['Max-Age']) {
+            $response->addHeader('Access-Control-Max-Age', $corsConfig['Max-Age']);
+        } else {
+            $response->addHeader('Access-Control-Max-Age', 86400);
+        }
+
+        return $response;
     }
 }
